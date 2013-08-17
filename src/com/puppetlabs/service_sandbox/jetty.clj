@@ -7,7 +7,9 @@
            (org.eclipse.jetty.util.thread QueuedThreadPool)
            (org.eclipse.jetty.util.ssl SslContextFactory)
            (javax.servlet.http HttpServletRequest HttpServletResponse))
-  (:require [ring.util.servlet :as servlet]))
+  (:require [ring.util.servlet :as servlet])
+  (:use     [clojure.string :only (split trim)]
+            [com.puppetlabs.utils :only (compare-jvm-versions acceptable-ciphers)]))
 
 (defn- proxy-handler
   "Returns an Jetty Handler implementation for the given Ring handler."
@@ -45,17 +47,35 @@
     (.setPort (options :ssl-port 443))
     (.setHost (options :host))))
 
+(defn- plaintext-connector
+  [options]
+  (doto (SelectChannelConnector.)
+    (.setPort (options :port 80))
+    (.setHost (options :host "localhost"))))
+
 (defn- create-server
   "Construct a Jetty Server instance."
   [options]
-  (let [connector (doto (SelectChannelConnector.)
-                    (.setPort (options :port 80))
-                    (.setHost (options :host)))
-        server    (doto (Server.)
-                    (.addConnector connector)
-                    (.setSendDateHeader true))]
+  (let [server (doto (Server.)
+                 (.setSendDateHeader true))]
+    (when (options :port)
+      (.addConnector server (plaintext-connector options)))
+
     (when (or (options :ssl?) (options :ssl-port))
-      (.addConnector server (ssl-connector options)))
+      (let [ssl-host  (options :ssl-host (options :host "localhost"))
+            options   (assoc options :host ssl-host)
+            connector (ssl-connector options)
+            ciphers   (if-let [txt (options :cipher-suites)]
+                        (map trim (split txt #","))
+                        (acceptable-ciphers))
+            protocols (if-let [txt (options :ssl-protocols)]
+                        (map trim (split txt #",")))]
+        (when ciphers
+          (let [fac (.getSslContextFactory connector)]
+            (.setIncludeCipherSuites fac (into-array ciphers))
+            (when protocols
+              (.setIncludeProtocols fac (into-array protocols)))))
+        (.addConnector server connector)))
     server))
 
 (defn ^Server run-jetty
