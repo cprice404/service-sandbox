@@ -1,12 +1,15 @@
 (ns com.puppetlabs.service-sandbox.jetty
   "Adapter for the Jetty webserver."
-  (:import (org.eclipse.jetty.server Server Request HttpConnectionFactory HttpConfiguration)
-           (org.eclipse.jetty.server.handler AbstractHandler)
+  (:import (org.eclipse.jetty.server Handler Server Request HttpConnectionFactory HttpConfiguration)
+           (org.eclipse.jetty.server.handler AbstractHandler ContextHandler
+              HandlerCollection ContextHandlerCollection)
            (org.eclipse.jetty.server ServerConnector ConnectionFactory)
            (org.eclipse.jetty.util.thread QueuedThreadPool)
            (org.eclipse.jetty.util.ssl SslContextFactory)
-           (javax.servlet.http HttpServletRequest HttpServletResponse))
-  (:require [ring.util.servlet :as servlet])
+           (javax.servlet.http HttpServletRequest HttpServletResponse)
+           [java.util.concurrent Executors])
+  (:require [ring.util.servlet :as servlet]
+            [overtone.at-at :as at])
   (:use     [clojure.string :only (split trim)]
             [com.puppetlabs.utils :only (compare-jvm-versions acceptable-ciphers)]))
 
@@ -110,3 +113,35 @@
     (when (:join? options true)
       (.join s))
     s))
+
+(defn run-dynamic-jetty
+  [options]
+  (let [^Server s                     (create-server (dissoc options :configurator))
+        ^ContextHandlerCollection chc (ContextHandlerCollection.)
+        ^HandlerCollection hc         (HandlerCollection.)]
+    (.setHandlers hc (into-array Handler [chc]))
+    (.setHandler s hc)
+    (when-let [configurator (:configurator options)]
+      (configurator s))
+    (.start s)
+    (when (:join? options true)
+      (.join s))
+    {:server   s
+     :handlers chc}))
+
+(defn add-handler
+  [dynamic-jetty handler path]
+  (let [handler-coll (:handlers dynamic-jetty)
+        ctxt-handler (doto (ContextHandler. path)
+                        (.setHandler (proxy-handler handler)))]
+    (.addHandler handler-coll ctxt-handler)
+    ;(.start ctxt-handler)
+    ctxt-handler))
+
+(defn join
+  [dynamic-jetty]
+  (.join (:server dynamic-jetty)))
+
+(defn shutdown
+  [dynamic-jetty delay-ms]
+  (at/at (+ delay-ms (at/now)) #(.stop (:server dynamic-jetty)) (at/mk-pool)))
