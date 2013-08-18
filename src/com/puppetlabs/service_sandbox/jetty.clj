@@ -1,9 +1,8 @@
 (ns com.puppetlabs.service-sandbox.jetty
   "Adapter for the Jetty webserver."
-  (:import (org.eclipse.jetty.server Server Request)
+  (:import (org.eclipse.jetty.server Server Request HttpConnectionFactory HttpConfiguration)
            (org.eclipse.jetty.server.handler AbstractHandler)
-           (org.eclipse.jetty.server.nio SelectChannelConnector)
-           (org.eclipse.jetty.server.ssl SslSelectChannelConnector)
+           (org.eclipse.jetty.server ServerConnector ConnectionFactory)
            (org.eclipse.jetty.util.thread QueuedThreadPool)
            (org.eclipse.jetty.util.ssl SslContextFactory)
            (javax.servlet.http HttpServletRequest HttpServletResponse))
@@ -40,41 +39,47 @@
       nil)
     context))
 
+(defn- connection-factory
+  []
+  (let [http-config (doto (HttpConfiguration.)
+                      (.setSendDateHeader true))]
+    (into-array ConnectionFactory
+      [(HttpConnectionFactory. http-config)])))
+
 (defn- ssl-connector
   "Creates a SslSelectChannelConnector instance."
-  [options]
-  (doto (SslSelectChannelConnector. (ssl-context-factory options))
+  [server ssl-ctxt-factory options]
+  (doto (ServerConnector. server ssl-ctxt-factory (connection-factory))
     (.setPort (options :ssl-port 443))
     (.setHost (options :host))))
 
 (defn- plaintext-connector
-  [options]
-  (doto (SelectChannelConnector.)
+  [server options]
+  (doto (ServerConnector. server (connection-factory))
     (.setPort (options :port 80))
     (.setHost (options :host "localhost"))))
 
 (defn- create-server
   "Construct a Jetty Server instance."
   [options]
-  (let [server (doto (Server.)
-                 (.setSendDateHeader true))]
+  (let [server (Server. (QueuedThreadPool. (options :max-threads 50)))]
     (when (options :port)
-      (.addConnector server (plaintext-connector options)))
-
+      (let [connector (plaintext-connector server options)]
+        (.addConnector server connector)))
     (when (or (options :ssl?) (options :ssl-port))
-      (let [ssl-host  (options :ssl-host (options :host "localhost"))
-            options   (assoc options :host ssl-host)
-            connector (ssl-connector options)
-            ciphers   (if-let [txt (options :cipher-suites)]
-                        (map trim (split txt #","))
-                        (acceptable-ciphers))
-            protocols (if-let [txt (options :ssl-protocols)]
-                        (map trim (split txt #",")))]
+      (let [ssl-host          (options :ssl-host (options :host "localhost"))
+            options           (assoc options :host ssl-host)
+            ssl-ctxt-factory  (ssl-context-factory options)
+            connector         (ssl-connector server ssl-ctxt-factory options)
+            ciphers           (if-let [txt (options :cipher-suites)]
+                                (map trim (split txt #","))
+                                (acceptable-ciphers))
+            protocols         (if-let [txt (options :ssl-protocols)]
+                                (map trim (split txt #",")))]
         (when ciphers
-          (let [fac (.getSslContextFactory connector)]
-            (.setIncludeCipherSuites fac (into-array ciphers))
-            (when protocols
-              (.setIncludeProtocols fac (into-array protocols)))))
+          (.setIncludeCipherSuites ssl-ctxt-factory (into-array ciphers))
+          (when protocols
+            (.setIncludeProtocols ssl-ctxt-factory (into-array protocols))))
         (.addConnector server connector)))
     server))
 
@@ -98,8 +103,7 @@
   [handler options]
   (let [^Server s (create-server (dissoc options :configurator))]
     (doto s
-      (.setHandler (proxy-handler handler))
-      (.setThreadPool (QueuedThreadPool. (options :max-threads 50))))
+      (.setHandler (proxy-handler handler)))
     (when-let [configurator (:configurator options)]
       (configurator s))
     (.start s)
