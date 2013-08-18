@@ -144,4 +144,6 @@
 
 (defn shutdown
   [dynamic-jetty delay-ms]
+  ;; this is a hack; we shouldn't be trying to shut down the web server from
+  ;; within a web request.
   (at/at (+ delay-ms (at/now)) #(.stop (:server dynamic-jetty)) (at/mk-pool)))
