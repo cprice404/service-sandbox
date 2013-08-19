@@ -1,3 +1,13 @@
-(ns com.puppetlabs.service-sandbox.services.webservice2.service)
+(ns com.puppetlabs.service-sandbox.services.webservice2.service
+  (:require [com.puppetlabs.service-sandbox.services.webservice2.core :as core])
+  (:use [plumbing.core :only [fnk]]))
 
-(def service-graph {})
+(defn service-graph
+  [path]
+  {:webservice2 (fnk [[:config-service config]
+                      [:logging-service log]
+                      [:http-service add-handler :as http-service]
+                      db-service]
+                  (let [options (config :webservice2)]
+                    (core/initialize log http-service db-service path options)
+                    {}))})

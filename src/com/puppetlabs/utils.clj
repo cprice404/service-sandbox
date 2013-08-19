@@ -1,5 +1,7 @@
 (ns com.puppetlabs.utils
-  (:use [clojure.string :only (split)]))
+  (:import [java.io StringWriter])
+  (:use [clojure.string :only [split]]
+        [clojure.pprint :only [pprint]]))
 
 (defn parse-int
   "Parse a string `s` as an integer, returning nil if the string doesn't
@@ -11,6 +13,10 @@
     (catch java.lang.NumberFormatException e
       nil)))
 
+(defn pprint-to-string [x]
+  (let [w (StringWriter.)]
+    (pprint x w)
+    (.toString w)))
 
 ;; Comparison of JVM versions
 

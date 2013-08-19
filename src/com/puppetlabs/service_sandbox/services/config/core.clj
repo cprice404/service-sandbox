@@ -5,7 +5,13 @@
 ;; it could be updated periodically.  Starting  with some hard-coded
 ;; values that we'd more likely read from a file, etc.
 (def config-map (atom {:shutdown
-                        {:shutdown-delay 10}}))
+                          {:shutdown-delay 10}
+                       :http
+                          {:port          9000
+;                           :ssl-port      9001
+;                           :keystore      "/home/cprice/work/puppet/puppetdb/conf/ssl.old2/keystore.jks"
+;                           :key-password  "ZZ7JKjtljuy3iRZBrtXuJo83x"
+                           }}))
 
 (defn initialize
   [log]

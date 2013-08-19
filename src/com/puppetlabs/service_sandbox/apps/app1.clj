@@ -10,17 +10,21 @@
 
 (def app-graph
   (merge
-    ws1/service-graph
-    ws2/service-graph
-    logging/service-graph
-    db/service-graph
-    http/service-graph
-    shutdown/service-graph
-    config/service-graph))
+    (ws1/service-graph "/foo")
+    (ws2/service-graph "/bar")
+    (logging/service-graph)
+    (db/service-graph)
+    (http/service-graph)
+    (shutdown/service-graph)
+    (config/service-graph)))
 
 (defn -main
   [& args]
-  (let [lazy-graph        ((graph/lazy-compile app-graph) {})
+  (let [lazy-graph
+;          ((graph/lazy-compile app-graph) {})
+          ((graph/eager-compile app-graph) {})
+;          ((graph/par-compile app-graph) {})
+
         shutdown-service  (lazy-graph :shutdown-service)
         wait-for-shutdown (shutdown-service :wait-for-shutdown)]
     (wait-for-shutdown)))
