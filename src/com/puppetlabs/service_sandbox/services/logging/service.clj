@@ -4,5 +4,7 @@
 
 (defn service-graph
   []
-  {:logging-service (fnk []
-                      {:log core/log})})
+  {:logging-service
+    (fnk [[:bootstrap-service app-options]]
+      (core/initialize)
+      {:log core/log})})

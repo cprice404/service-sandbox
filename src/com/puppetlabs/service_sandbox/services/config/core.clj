@@ -15,6 +15,7 @@
 
 (defn initialize
   [log]
+  (log :info "Initializing config service")
   ;; config service could poll filesystem for updates, etc., and update
   ;; the atom.
   (at-at/every 5000 #(log :info "Config service checking for updates.") (at-at/mk-pool)))

@@ -7,3 +7,7 @@
   ([level & msgs]
     ;; TODO: hook in a real logger here, just using println for now.
     (println level (s/join " " msgs))))
+
+(defn initialize
+  []
+  (log :info "Initializing log service"))

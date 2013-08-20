@@ -4,5 +4,7 @@
 
 (defn service-graph
   []
-  {:db-service (fnk []
-                 {:db {:fake-value [{:count 1234}]}})})
+  {:db-service
+    (fnk [[:logging-service log]]
+      (log :info "Initializing db service")
+      {:db {:fake-value [{:count 1234}]}})})
