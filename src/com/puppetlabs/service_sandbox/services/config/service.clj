@@ -9,3 +9,9 @@
                      {:config core/config
                       :shutdown (partial core/shutdown log)
                       })})
+
+(defn bootstrap
+  [log args]
+  (core/bootstrap log args)
+  {:config core/config
+   :service-graph (service-graph)})

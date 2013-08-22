@@ -16,6 +16,10 @@
 ;                           :key-password  "ZZ7JKjtljuy3iRZBrtXuJo83x"
                            }}))
 
+(defn bootstrap
+  [log args]
+  (log :debug "Loading initial configuration."))
+
 (defn initialize
   [log]
   ;; config service could poll filesystem for updates, etc., and update
