@@ -1,3 +1,5 @@
 .idea
 pom.xml
 target
+.lein-failures
+*.iml

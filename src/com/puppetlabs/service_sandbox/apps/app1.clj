@@ -20,12 +20,19 @@
 
 (defn -main
   [& args]
-  (let [lazy-graph
-;          ((graph/lazy-compile app-graph) {})
-          ((graph/eager-compile app-graph) {})
-;          ((graph/par-compile app-graph) {})
+  (let [wrapped-graph   (-> app-graph
+                          ;; TODO should be able to generalize this
+                          ;; into a generic "pre-compile" phase that
+                          ;; any service can hook into by simply
+                          ;; providing a ":precompile" fnk on the
+                          ;; service itself.
+                          (shutdown/register-hooks))
+        compiled-graph
+              ;          ((graph/lazy-compile wrapped-graph) {})
+                        ((graph/eager-compile wrapped-graph) {})
+              ;          ((graph/par-compile wrapped-graph) {})
 
-        shutdown-service  (lazy-graph :shutdown-service)
+        shutdown-service  (compiled-graph   :shutdown-service)
         wait-for-shutdown (shutdown-service :wait-for-shutdown)]
     (wait-for-shutdown)))
 

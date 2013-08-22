@@ -6,4 +6,6 @@
   []
   {:config-service (fnk [[:logging-service log]]
                      (core/initialize log)
-                     {:config core/config})})
+                     {:config core/config
+                      :shutdown (partial core/shutdown log)
+                      })})

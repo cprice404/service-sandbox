@@ -1,6 +1,9 @@
 (ns com.puppetlabs.service-sandbox.services.config.core
   (:require [overtone.at-at :as at-at]))
 
+(def at-at-pool (atom (at-at/mk-pool)))
+(def update-checker-task (atom nil))
+
 ;; as an example, we could use an atom to store the config so that
 ;; it could be updated periodically.  Starting  with some hard-coded
 ;; values that we'd more likely read from a file, etc.
@@ -17,8 +20,21 @@
   [log]
   ;; config service could poll filesystem for updates, etc., and update
   ;; the atom.
-  (at-at/every 5000 #(log :info "Config service checking for updates.") (at-at/mk-pool)))
+  (log :info "Initializing config service.")
+  (reset! update-checker-task
+    (at-at/every 5000
+      #(log :info "Config service checking for updates.")
+      @at-at-pool)))
 
 (defn config
   [k]
   (get @config-map k))
+
+(defn shutdown
+  [log]
+  (log :info "SHUTTING DOWN CONFIG SERVICE")
+  (at-at/stop @update-checker-task)
+  (reset! update-checker-task nil)
+  (at-at/stop @at-at-pool)
+  (reset! at-at-pool nil)
+  (log :info "CONFIG SERVICE SHUTDOWN COMPLETE"))
