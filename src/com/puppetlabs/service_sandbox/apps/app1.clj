@@ -15,17 +15,13 @@
     (logging/service-graph)
     (db/service-graph)
     (http/service-graph)
-    (shutdown/service-graph)
     (config/service-graph)))
 
 (defn -main
   [& args]
+  ;; TODO: move all of this compilation stuff into a services library
+  ;; so that the app definition doesn't have to handle it.
   (let [wrapped-graph   (-> app-graph
-                          ;; TODO should be able to generalize this
-                          ;; into a generic "pre-compile" phase that
-                          ;; any service can hook into by simply
-                          ;; providing a ":precompile" fnk on the
-                          ;; service itself.
                           (shutdown/register-hooks))
         compiled-graph
               ;          ((graph/lazy-compile wrapped-graph) {})

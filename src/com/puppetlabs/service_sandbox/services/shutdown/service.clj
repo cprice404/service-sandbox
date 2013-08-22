@@ -22,7 +22,8 @@
     input-schema))
 
 (defn- wrap-node-fn
-  [node-fn]
+  [path node-fn]
+  (println "Wrapping node function" path)
   (pfnk/fn->fnk
     (fn [m]
       (let [result (node-fn m)]
@@ -36,14 +37,7 @@
 
 (defn- wrap-node-fns
   [graph]
-  (map/map-leaves wrap-node-fn graph))
-
-(defn register-hooks
-  [app-graph]
-  (let [mapped-graph (-> app-graph
-                       (wrap-node-fns)
-                       (add-shutdown-hooks-atom))]
-    mapped-graph))
+  (map/map-leaves-and-path wrap-node-fn graph))
 
 (defn service-graph
   []
@@ -54,3 +48,11 @@
                          (core/initialize log @shutdown-hooks)
                          {:wait-for-shutdown
                           (partial core/wait-for-shutdown log options)}))})
+
+(defn register-hooks
+  [app-graph]
+  (let [mapped-graph (-> app-graph
+                       (merge (service-graph))
+                       (wrap-node-fns)
+                       (add-shutdown-hooks-atom))]
+    mapped-graph))
