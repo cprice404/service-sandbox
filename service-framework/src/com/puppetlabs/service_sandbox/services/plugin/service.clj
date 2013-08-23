@@ -1,4 +1,11 @@
+;; TODO: currently, this isn't really a service,
+;; it's just some code that manipulates the graph
+;; prior to compilation.  Probably should rename
+;; it accordingly.
+
 (ns com.puppetlabs.service-sandbox.services.plugin.service
+  (:import [java.io FileInputStream]
+           [java.util.jar JarFile Manifest])
   (:require [me.raynes.fs :as fs]
             [cemerick.pomegranate :as pom]
             [clojure.string :as s])
@@ -6,25 +13,32 @@
         [com.puppetlabs.utils :only [pprint-to-string]]))
 
 ;; TODO: this belongs in some utility library
-(defn- parse-manifest-line
-  [m line]
-  (if (empty? line)
-    m
-    (let [[key val] (s/split line #":" 2)]
-      (assoc m key (s/trim val)))))
+(defn- manifest->map
+  [manifest]
+  (reduce
+    (fn [m e]
+      (assoc m (.. e getKey toString) (.getValue e)))
+    {}
+    (.getMainAttributes manifest)))
 
-(defn parse-manifest
+(defn- parse-manifest
   [manifest-file]
-  (with-open [r (reader manifest-file)]
-    (reduce parse-manifest-line {} (line-seq r))))
+  (when-let [m (Manifest. (FileInputStream. manifest-file))]
+    (manifest->map m)))
 
-;; TODO: this belongs in some utility library
-(defn subdirs
+(defn- get-jar-manifest
+  [jar-path]
+  (when-let [j (JarFile. jar-path)]
+    (when-let [m (.getManifest j)]
+      (manifest->map m))))
+
+(defn plugin-candidates
   [plugins-dir]
-  (filter fs/directory?
+  (filter
+    #(or (fs/directory? %)
+         (= ".jar" (fs/extension %)))
     (map #(fs/file plugins-dir %)
       (fs/list-dir plugins-dir))))
-
 
 ;; TODO: this is a stupid, temporary hack to alleviate the need
 ;; to pass the `log` fn from the logging service around everywhere.
@@ -47,25 +61,49 @@
   [services-str])
 
 (defn- get-service-graphs-for-manifest
-  [plugin-dir manifest]
+  [plugin-path manifest]
   (let [services-str  (manifest "Clojure-Services")]
     (when services-str
       (let [service-fns (parse-manifest-services-str services-str)
-            plugin      (fs/base-name plugin-dir)]
+            plugin      (fs/base-name plugin-path)]
         (log :info "Found services for plugin" plugin)
-        (pom/add-classpath plugin-dir)
+        (pom/add-classpath plugin-path)
         (map (fn [service-fn]
                (log :info "Loading service graph" service-fn "for plugin" plugin)
                (call-fn-by-name service-fn))
           service-fns)))))
 
-(defn- add-service-graphs-for-plugin
+(defn- add-service-graphs-for-manifest
+  [coll plugin-path manifest]
+  (concat coll
+    (get-service-graphs-for-manifest plugin-path manifest)))
+
+(defn- add-service-graphs-for-src-plugin
   [coll plugin-dir]
+  (log :info "Looking for manifest in src plugin:" plugin-dir)
   (let [manifest-file (fs/file plugin-dir "META-INF" "MANIFEST.MF")]
     (if (fs/file? manifest-file)
-      (let [manifest (parse-manifest manifest-file)]
-        (concat coll (get-service-graphs-for-manifest plugin-dir manifest)))
+      (add-service-graphs-for-manifest coll plugin-dir (parse-manifest manifest-file))
       coll)))
+
+(defn- add-service-graphs-for-jar-plugin
+  [coll jar-plugin]
+  (log :info "Looking for manifest in jar plugin:" jar-plugin)
+  (let [manifest (get-jar-manifest jar-plugin)]
+    (if manifest
+      (add-service-graphs-for-manifest coll jar-plugin manifest)
+      coll)))
+
+(defn- add-service-graphs-for-plugin
+  [coll plugin-path]
+  (cond
+    (fs/directory? plugin-path)
+    (add-service-graphs-for-src-plugin coll plugin-path)
+
+    (= ".jar" (fs/extension plugin-path))
+    (add-service-graphs-for-jar-plugin coll plugin-path)
+
+    :else coll))
 
 (defn register-plugins
   [app-graph log-service-log-fn config]
@@ -79,6 +117,6 @@
       (throw (IllegalArgumentException.
                (format ":plugins-dir setting must be a directory (%s)" plugins-dir))))
     (let [plugin-graphs (reduce add-service-graphs-for-plugin []
-                          (subdirs plugins-dir))]
+                          (plugin-candidates plugins-dir))]
       (apply merge app-graph
         plugin-graphs))))

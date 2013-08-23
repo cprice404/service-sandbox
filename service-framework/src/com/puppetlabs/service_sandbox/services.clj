@@ -56,6 +56,11 @@
                           (:service-graph app)
                           (:service-graph logger)
                           (:service-graph config-svc))
+        ;; TODO: would like to make this graph manipulation
+        ;; more general and dynamic, so that app-provided services
+        ;; would have some ability to hook into a lifecycle
+        ;; and manipulate the graph according to their own
+        ;; needs.
         wrapped-graph   (-> app-graph
                           (register-plugins app log config)
                           (validate-output-schemas!)

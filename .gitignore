@@ -3,3 +3,4 @@ pom.xml
 target
 .lein-failures
 *.iml
+service-framework/plugins/*.jar
