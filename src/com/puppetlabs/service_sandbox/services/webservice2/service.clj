@@ -4,10 +4,11 @@
 
 (defn service-graph
   [path]
-  {:webservice2 (fnk [[:config-service config]
-                      [:logging-service log]
-                      [:http-service add-handler :as http-service]
-                      db-service]
+  {:webservice2 (fnk ^{:output-schema {}}
+                  [[:config-service config]
+                   [:logging-service log]
+                   [:http-service add-handler :as http-service]
+                   db-service]
                   (let [options (config :webservice2)]
-                    (core/initialize log http-service db-service path options)
-                    {}))})
+                      (core/initialize log http-service db-service path options)
+                      {}))})

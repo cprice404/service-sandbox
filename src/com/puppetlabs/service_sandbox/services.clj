@@ -3,13 +3,35 @@
             [com.puppetlabs.service-sandbox.services.logging.service :as logging]
             [com.puppetlabs.service-sandbox.services.shutdown.service :as shutdown]
             [com.puppetlabs.service-sandbox.services.plugin.service :as plugin]
-            [plumbing.graph :as graph])
+            [plumbing.graph :as graph]
+            [plumbing.map :as map]
+            [plumbing.fnk.pfnk :as pfnk])
   (:use [com.puppetlabs.utils :refer [pprint-to-string]]))
 
 (defn register-plugins
   [graph app log config]
   (if (:plugins app)
     (plugin/register-plugins graph log config)
+    graph))
+
+(defn validate-output-schema!
+  [path node-fn]
+  (when-not (map? (pfnk/output-schema node-fn))
+    (throw (IllegalStateException.
+             (format
+               (str "Definition for service '%s' is invalid; "
+                  "unable to determine output schema.  Service "
+                  "node fnk must either return a top-level map "
+                  "literal, or must be explicitly annotated with "
+                  "output schema metadata.  For more info, see "
+                  "the docs for the `fnk` macro.")
+               path))))
+  node-fn)
+
+(defn validate-output-schemas!
+  [graph]
+  (map/map-leaves-and-path
+    validate-output-schema!
     graph))
 
 (defn register-shutdown-hooks
@@ -34,16 +56,9 @@
                           (:service-graph app)
                           (:service-graph logger)
                           (:service-graph config-svc))
-        ;; TODO: add a step that validates that the output
-        ;; schema is accessible for all of the services in
-        ;; the graph.  It will only be visible if the node-fnk
-        ;; returns a map literal or explicitly sets its own
-        ;; metadata, and if the output schema isn't visible /
-        ;; detected, it can cause all kinds of weird failures
-        ;; when trying to register dependencies, shutdown hooks,
-        ;; etc.
         wrapped-graph   (-> app-graph
                           (register-plugins app log config)
+                          (validate-output-schemas!)
                           (register-shutdown-hooks app log config))
         compiled-graph
                         ;((graph/lazy-compile wrapped-graph) {})
