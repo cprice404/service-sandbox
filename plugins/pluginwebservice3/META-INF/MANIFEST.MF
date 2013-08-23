@@ -1,0 +1,5 @@
+Manifest-Version: 1.0
+Built-By: cprice
+Created-By: Leiningen 2.1.3
+Main-Class: com.puppetlabs.service_sandbox.core
+Clojure-Services: pluginwebservice3.service/service-graph

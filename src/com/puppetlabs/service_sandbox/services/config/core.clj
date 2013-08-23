@@ -14,7 +14,9 @@
 ;                           :ssl-port      9001
 ;                           :keystore      "/home/cprice/work/puppet/puppetdb/conf/ssl.old2/keystore.jks"
 ;                           :key-password  "ZZ7JKjtljuy3iRZBrtXuJo83x"
-                           }}))
+                           }
+                       :plugins-dir "plugins"
+                       }))
 
 (defn bootstrap
   [log args]

@@ -6,7 +6,9 @@
                  [compojure "1.1.5"]
                  [overtone/at-at "1.2.0"]
                  [clj-time "0.5.1"]
-                 [prismatic/plumbing "0.1.0"]]
+                 [prismatic/plumbing "0.1.0"]
+                 [me.raynes/fs "1.4.4"]
+                 [com.cemerick/pomegranate "0.2.0"]]
 
   :profiles {:dev {:resource-paths ["test-resources"],
                    :dependencies [[ring-mock "0.1.5"]]}}

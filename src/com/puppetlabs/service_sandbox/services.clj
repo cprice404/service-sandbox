@@ -25,14 +25,15 @@
   [app args]
   (let [logger          (get app :logging-service
                           (logging/bootstrap))
-        config          (get app :config-service
-                          (config/bootstrap logger args))
-        _               ((:initialize logger) config)
         log             (:log logger)
+        config-svc      (get app :config-service
+                          (config/bootstrap logger args))
+        config          (:config config-svc)
+        _               ((:initialize logger) config)
         app-graph       (merge
                           (:service-graph app)
                           (:service-graph logger)
-                          (:service-graph config))
+                          (:service-graph config-svc))
         wrapped-graph   (-> app-graph
                           (register-plugins app log config)
                           (register-shutdown-hooks app log config))
