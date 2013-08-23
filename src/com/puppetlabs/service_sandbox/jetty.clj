@@ -8,8 +8,7 @@
            (org.eclipse.jetty.util.ssl SslContextFactory)
            (javax.servlet.http HttpServletRequest HttpServletResponse)
            [java.util.concurrent Executors])
-  (:require [ring.util.servlet :as servlet]
-            [overtone.at-at :as at])
+  (:require [ring.util.servlet :as servlet])
   (:use     [clojure.string :only (split trim)]
             [com.puppetlabs.utils :only (compare-jvm-versions acceptable-ciphers)]))
 
@@ -143,7 +142,5 @@
   (.join (:server dynamic-jetty)))
 
 (defn shutdown
-  [dynamic-jetty delay-ms]
-  ;; this is a hack; we shouldn't be trying to shut down the web server from
-  ;; within a web request.
-  (at/at (+ delay-ms (at/now)) #(.stop (:server dynamic-jetty)) (at/mk-pool)))
+  [dynamic-jetty]
+  (.stop (:server dynamic-jetty)))
