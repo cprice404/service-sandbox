@@ -34,6 +34,14 @@
                           (:service-graph app)
                           (:service-graph logger)
                           (:service-graph config-svc))
+        ;; TODO: add a step that validates that the output
+        ;; schema is accessible for all of the services in
+        ;; the graph.  It will only be visible if the node-fnk
+        ;; returns a map literal or explicitly sets its own
+        ;; metadata, and if the output schema isn't visible /
+        ;; detected, it can cause all kinds of weird failures
+        ;; when trying to register dependencies, shutdown hooks,
+        ;; etc.
         wrapped-graph   (-> app-graph
                           (register-plugins app log config)
                           (register-shutdown-hooks app log config))
