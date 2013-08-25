@@ -4,34 +4,13 @@
 ;; it accordingly.
 
 (ns com.puppetlabs.service-sandbox.services.plugin.service
-  (:import [java.io FileInputStream]
-           [java.util.jar JarFile Manifest])
   (:require [me.raynes.fs :as fs]
             [cemerick.pomegranate :as pom]
-            [clojure.string :as s])
+            [clojure.string :as s]
+            [com.puppetlabs.jar :as jar])
   (:use [clojure.java.io :only [reader]]
         [com.puppetlabs.utils :only [pprint-to-string]]
         [plumbing.core :only [fnk]]))
-
-;; TODO: this belongs in some utility library
-(defn- manifest->map
-  [manifest]
-  (reduce
-    (fn [m e]
-      (assoc m (.. e getKey toString) (.getValue e)))
-    {}
-    (.getMainAttributes manifest)))
-
-(defn- parse-manifest
-  [manifest-file]
-  (when-let [m (Manifest. (FileInputStream. manifest-file))]
-    (manifest->map m)))
-
-(defn- get-jar-manifest
-  [jar-path]
-  (when-let [j (JarFile. jar-path)]
-    (when-let [m (.getManifest j)]
-      (manifest->map m))))
 
 (defn plugin-candidates
   [plugins-dir]
@@ -84,13 +63,14 @@
   (log :info "Looking for manifest in src plugin:" plugin-dir)
   (let [manifest-file (fs/file plugin-dir "META-INF" "MANIFEST.MF")]
     (if (fs/file? manifest-file)
-      (add-service-graphs-for-manifest coll plugin-dir (parse-manifest manifest-file))
+      (add-service-graphs-for-manifest coll plugin-dir
+        (jar/parse-manifest-file manifest-file))
       coll)))
 
 (defn- add-service-graphs-for-jar-plugin
   [coll jar-plugin]
   (log :info "Looking for manifest in jar plugin:" jar-plugin)
-  (let [manifest (get-jar-manifest jar-plugin)]
+  (let [manifest (jar/get-jar-manifest jar-plugin)]
     (if manifest
       (add-service-graphs-for-manifest coll jar-plugin manifest)
       coll)))
