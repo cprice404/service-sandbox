@@ -63,8 +63,8 @@
         ;; needs.
         wrapped-graph   (-> app-graph
                           (register-plugins app log config)
-                          (validate-output-schemas!)
-                          (register-shutdown-hooks app log config))
+                          (register-shutdown-hooks app log config)
+                          (validate-output-schemas!))
         compiled-graph
                         ;((graph/lazy-compile wrapped-graph) {})
                         ((graph/eager-compile wrapped-graph) {})

@@ -10,7 +10,8 @@
             [cemerick.pomegranate :as pom]
             [clojure.string :as s])
   (:use [clojure.java.io :only [reader]]
-        [com.puppetlabs.utils :only [pprint-to-string]]))
+        [com.puppetlabs.utils :only [pprint-to-string]]
+        [plumbing.core :only [fnk]]))
 
 ;; TODO: this belongs in some utility library
 (defn- manifest->map
@@ -118,5 +119,4 @@
                (format ":plugins-dir setting must be a directory (%s)" plugins-dir))))
     (let [plugin-graphs (reduce add-service-graphs-for-plugin []
                           (plugin-candidates plugins-dir))]
-      (apply merge app-graph
-        plugin-graphs))))
+      (assoc app-graph :plugins (apply merge plugin-graphs)))))
