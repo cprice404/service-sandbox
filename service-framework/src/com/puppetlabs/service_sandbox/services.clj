@@ -3,8 +3,8 @@
             [com.puppetlabs.service-sandbox.services.logging.service :as logging]
             [com.puppetlabs.service-sandbox.services.shutdown.service :as shutdown]
             [com.puppetlabs.service-sandbox.services.plugin.service :as plugin]
+            [com.puppetlabs.map :as map]
             [plumbing.graph :as graph]
-            [plumbing.map :as map]
             [plumbing.fnk.pfnk :as pfnk])
   (:use [com.puppetlabs.utils :refer [pprint-to-string]]))
 
@@ -30,7 +30,7 @@
 
 (defn validate-output-schemas!
   [graph]
-  (map/map-leaves-and-path
+  (map/walk-leaves-and-path
     validate-output-schema!
     graph))
 

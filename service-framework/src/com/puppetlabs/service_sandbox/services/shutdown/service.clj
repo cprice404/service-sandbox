@@ -1,7 +1,7 @@
 (ns com.puppetlabs.service-sandbox.services.shutdown.service
   (:require [com.puppetlabs.service-sandbox.services.shutdown.core :as core]
-            [plumbing.map :as map]
-            [plumbing.fnk.pfnk :as pfnk])
+            [plumbing.fnk.pfnk :as pfnk]
+            [com.puppetlabs.map :as map])
   (:use [plumbing.core :only [fnk]]
         [com.puppetlabs.utils :only [pprint-to-string]]))
 
@@ -37,7 +37,7 @@
 
 (defn- wrap-node-fns
   [graph log]
-  (map/map-leaves-and-path (partial wrap-node-fn log) graph))
+  (map/walk-leaves-and-path (partial wrap-node-fn log) graph))
 
 (defn service-graph
   []
@@ -50,29 +50,9 @@
                          {:wait-for-shutdown
                           (partial core/wait-for-shutdown log options)}))})
 
-;; TODO move to map library and rename
-(defn map-fn-on-leaves-and-path
-  "Takes a nested map and returns a nested map with the same shape, where each
-   (non-map) leaf v is transformed to (f key-seq v).
-   key-seq is the sequence of keys to reach this leaf, starting at the root."
-  ([f m] (when m (map-fn-on-leaves-and-path f [] m)))
-  ([f ks m]
-    (if-not (map? m)
-      (list (f ks m))
-      (apply concat
-        (for [[k v] m]
-          (map-fn-on-leaves-and-path f (conj ks k) v))))))
-
-(defn deep-merge
-  "Recursively merges maps. If vals are not maps, the last value wins."
-  [& vals]
-  (if (every? map? vals)
-    (apply merge-with deep-merge vals)
-    (last vals)))
-
 (defn services-with-hooks
   [g]
-  (let [nodes     (map-fn-on-leaves-and-path
+  (let [nodes     (map/map-leaves-and-path
                     (fn [path node-fn]
                       [path node-fn])
                     g)
@@ -85,7 +65,7 @@
 
 (defn update-input-schema
   [svc-graph services]
-  (let [svc-schemas (apply deep-merge
+  (let [svc-schemas (apply map/deep-merge
                       (map
                         #(reduce (fn [x y] {y x}) (reverse (conj % true)))
                         services))]
