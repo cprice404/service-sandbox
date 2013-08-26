@@ -1,7 +1,9 @@
 (ns com.puppetlabs.service-sandbox.services.shutdown.service
   (:require [com.puppetlabs.service-sandbox.services.shutdown.core :as core]
             [plumbing.fnk.pfnk :as pfnk]
-            [com.puppetlabs.map :as map])
+            [com.puppetlabs.map :as map]
+            [com.puppetlabs.service-sandbox.services.utils :as svc-utils]
+            [clojure.string :as s])
   (:use [plumbing.core :only [fnk]]
         [com.puppetlabs.utils :only [pprint-to-string]]))
 
@@ -9,35 +11,31 @@
   [graph]
   (assoc graph :shutdown-hooks (fnk ^{:output-schema {}} [] (atom nil))))
 
+(defn- maybe-register-shutdown-hook
+  [log path input-map output-map]
+  (when-let [shutdown (:shutdown output-map)]
+    (log :info "Registering shutdown hook for service:" path)
+    (swap! (:shutdown-hooks input-map) conj shutdown))
+  output-map)
+
 (defn- maybe-add-shutdown-hook-input
   "If the original node provides :shutdown, then it has
   a dependency on the :shutdown-hooks atom that we've
   added to the graph, so we modify its input schema
   accordingly."
   [input-schema output-schema]
-  (if (and
+  [(if (and
         (map? output-schema)
         (contains? output-schema :shutdown))
-    (assoc input-schema :shutdown-hooks true)
-    input-schema))
-
-(defn- wrap-node-fn
-  [log path node-fn]
-  (pfnk/fn->fnk
-    (fn [m]
-      (let [result (node-fn m)]
-        (when-let [shutdown (:shutdown result)]
-          (log :info "Registering shutdown hook for service:" path)
-          (swap! (:shutdown-hooks m) conj shutdown))
-        result))
-    (let [input-schema  (pfnk/input-schema node-fn)
-          output-schema (pfnk/output-schema node-fn)]
-      [(maybe-add-shutdown-hook-input input-schema output-schema)
-        output-schema])))
+      (assoc input-schema :shutdown-hooks true)
+      input-schema)
+    output-schema])
 
 (defn- wrap-node-fns
   [graph log]
-  (map/walk-leaves-and-path (partial wrap-node-fn log) graph))
+  (svc-utils/wrap-node-fns graph
+    (partial maybe-register-shutdown-hook log)
+    maybe-add-shutdown-hook-input))
 
 (defn service-graph
   []
@@ -52,45 +50,24 @@
 
 (defn services-with-hooks
   [g]
-  (let [nodes     (map/map-leaves-and-path
-                    (fn [path node-fn]
-                      [path node-fn])
-                    g)
-        filtered  (filter
-                    (fn [[path node-fn]]
-                      (let [input-schema (pfnk/input-schema node-fn)]
-                        (contains? input-schema :shutdown-hooks)))
-                    nodes)]
-    (map first filtered)))
-
-(defn update-input-schema
-  [svc-graph services]
-  (let [svc-schemas (apply map/deep-merge
-                      (map
-                        #(reduce (fn [x y] {y x}) (reverse (conj % true)))
-                        services))]
-    (println "Services with hooks:" svc-schemas)
-    (update-in svc-graph [:shutdown-service]
-      (fn [node-fn]
-        (let [input-schema (pfnk/input-schema node-fn)
-              output-schema (pfnk/output-schema node-fn)]
-          (pfnk/fn->fnk
-            (fn [m]
-              (node-fn m))
-            [(merge input-schema svc-schemas)
-             output-schema]))))))
+  (map first
+    (svc-utils/filter-by-schema
+      (fn [path input-schema output-schema]
+        (contains? input-schema :shutdown-hooks))
+      g)))
 
 (defn add-shutdown-service-graph
-  [g]
-  (merge g
-    (update-input-schema
-      (service-graph)
-      (services-with-hooks g))))
+  [g log]
+  (let [shutdown-services (services-with-hooks g)]
+    (log :info "Services with shutdown hooks:" (s/join ", " shutdown-services))
+    (merge g
+      (svc-utils/add-dependencies
+        (service-graph) [:shutdown-service] shutdown-services))))
 
 (defn register-hooks
   [app-graph log]
   (let [mapped-graph (-> app-graph
                        (wrap-node-fns log)
                        (add-shutdown-hooks-atom)
-                       (add-shutdown-service-graph))]
+                       (add-shutdown-service-graph log))]
     mapped-graph))

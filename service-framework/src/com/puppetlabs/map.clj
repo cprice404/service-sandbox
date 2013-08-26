@@ -19,6 +19,14 @@
         (for [[k v] m]
           (map-leaves-and-path f (conj ks k) v))))))
 
+(defn filter-leaves-and-path
+  [f m]
+  (let [leaves (map-leaves-and-path
+                (fn [k v] [k v])
+                m)
+        wrapped-fn (fn [[k v]] (f k v))]
+    (filter wrapped-fn leaves)))
+
 (defn deep-merge
   "Recursively merges maps. If vals are not maps, the last value wins."
   [& vals]
