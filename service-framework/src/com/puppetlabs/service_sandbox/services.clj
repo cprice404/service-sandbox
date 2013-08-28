@@ -3,6 +3,7 @@
             [com.puppetlabs.service-sandbox.services.logging.service :as logging]
             [com.puppetlabs.service-sandbox.services.shutdown.service :as shutdown]
             [com.puppetlabs.service-sandbox.services.plugin.service :as plugin]
+            [com.puppetlabs.service-sandbox.services.monitor.service :as monitor]
             [com.puppetlabs.map :as map]
             [plumbing.graph :as graph]
             [plumbing.fnk.pfnk :as pfnk])
@@ -38,6 +39,12 @@
   [graph app log config]
   (shutdown/register-hooks graph log))
 
+(defn register-final-graph
+  [graph compiled-graph]
+  ;; TODO: the monitor service should be registered by the
+  ;; app, not generically by this suite
+  (monitor/register-final-graph graph compiled-graph))
+
 (defn run-app
   ;; Default implementation provides a logging service,
   ;; config service, shutdown service, and plugin registration.
@@ -55,20 +62,27 @@
         app-graph       (merge
                           (:service-graph app)
                           (:service-graph logger)
-                          (:service-graph config-svc))
+                          (:service-graph config-svc)
+                          (monitor/service-graph "/monitor"))
         ;; TODO: would like to make this graph manipulation
         ;; more general and dynamic, so that app-provided services
         ;; would have some ability to hook into a lifecycle
         ;; and manipulate the graph according to their own
         ;; needs.
         wrapped-graph   (-> app-graph
+                          ;; TODO: perhaps a 'register-services' phase
                           (register-plugins app log config)
+                          ;; TODO: perhaps a 'register-hooks' phase
                           (register-shutdown-hooks app log config)
-                          (validate-output-schemas!))
+                          (validate-output-schemas!)
+                          (graph/->graph))
         compiled-graph
                         ;((graph/lazy-compile wrapped-graph) {})
                         ((graph/eager-compile wrapped-graph) {})
                         ;((graph/par-compile wrapped-graph) {})
+
+                        ;; TODO: perhaps a 'register-graph' phase
+        _               (register-final-graph wrapped-graph compiled-graph)
 
         shutdown-service  (compiled-graph   :shutdown-service)
         wait-for-shutdown (shutdown-service :wait-for-shutdown)]

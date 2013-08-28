@@ -17,11 +17,15 @@
     (partial wrap-node-fn node-fn schema-fn)
     g))
 
+(defn service-path->map
+  [f path]
+  (reduce (fn [x y] {y x}) (reverse (conj path (f path)))))
+
 (defn service-list->input-schema
   [services]
   (apply map/deep-merge
     (map
-      #(reduce (fn [x y] {y x}) (reverse (conj % true)))
+      (partial service-path->map (fn [path] true))
       services)))
 
 (defn add-dependencies

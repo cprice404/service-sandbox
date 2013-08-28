@@ -11,4 +11,4 @@
                    db-service]
                   (let [options (config :webservice2)]
                       (core/initialize log http-service db-service path options)
-                      {}))})
+                      {:status (fn [] {:msg "ALL SYSTEMS GO!"})}))})

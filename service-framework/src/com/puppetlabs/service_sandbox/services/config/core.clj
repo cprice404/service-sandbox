@@ -8,7 +8,7 @@
 ;; it could be updated periodically.  Starting  with some hard-coded
 ;; values that we'd more likely read from a file, etc.
 (def config-map (atom {:shutdown
-                          {:shutdown-delay 10}
+                          {:shutdown-delay 30}
                        :http
                           {:port          9000
 ;                           :ssl-port      9001
