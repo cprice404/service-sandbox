@@ -16,5 +16,5 @@
   :jar-exclusions [#"leiningen/"]
 
   ;:aot [com.puppetlabs.puppetdb.core]
-  :main com.puppetlabs.service-sandbox.core
+  :main com.puppetlabs.service-sandbox.apps.app2
 )

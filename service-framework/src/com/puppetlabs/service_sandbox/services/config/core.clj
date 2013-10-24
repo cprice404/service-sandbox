@@ -41,6 +41,6 @@
   (log :info "SHUTTING DOWN CONFIG SERVICE")
   (at-at/stop @update-checker-task)
   (reset! update-checker-task nil)
-  (at-at/stop @at-at-pool)
+  (at-at/stop-and-reset-pool! @at-at-pool)
   (reset! at-at-pool nil)
   (log :info "CONFIG SERVICE SHUTDOWN COMPLETE"))
